@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "zenoh.h": "c",
+        "zenoh_commons.h": "c",
+        "zenoh_dart.h": "c"
+    }
+}

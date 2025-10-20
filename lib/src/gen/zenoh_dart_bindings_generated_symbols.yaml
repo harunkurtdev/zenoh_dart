@@ -1,0 +1,74 @@
+format_version: 1.0.0
+files:
+  package:zenoh_dart/src/gen/zenoh_dart_bindings_generated.dart:
+    used-config:
+      ffi-native: false
+    symbols:
+      SubscriberCallbackFunction:
+        name: SubscriberCallbackFunction
+      c:@F@zenoh_cleanup:
+        name: zenoh_cleanup
+      c:@F@zenoh_close_session:
+        name: zenoh_close_session
+      c:@F@zenoh_free_string:
+        name: zenoh_free_string
+      c:@F@zenoh_get:
+        name: zenoh_get
+      c:@F@zenoh_get_subscriber_count:
+        name: zenoh_get_subscriber_count
+      c:@F@zenoh_get_with_handler:
+        name: zenoh_get_with_handler
+      c:@F@zenoh_init:
+        name: zenoh_init
+      c:@F@zenoh_open_session:
+        name: zenoh_open_session
+      c:@F@zenoh_publish:
+        name: zenoh_publish
+      c:@F@zenoh_put:
+        name: zenoh_put
+      c:@F@zenoh_subscribe:
+        name: zenoh_subscribe
+      c:@F@zenoh_unsubscribe:
+        name: zenoh_unsubscribe
+      c:@F@zenoh_unsubscribe_all:
+        name: zenoh_unsubscribe_all
+      c:@S@__pthread_internal_list:
+        name: __pthread_internal_list
+      c:@S@__pthread_mutex_s:
+        name: __pthread_mutex_s
+      c:@S@subscriber_node:
+        name: subscriber_node
+      c:@S@z_owned_publisher_t:
+        name: z_owned_publisher_t
+      c:@S@z_owned_session_t:
+        name: z_owned_session_t
+      c:@S@z_owned_subscriber_t:
+        name: z_owned_subscriber_t
+      c:@T@__pthread_list_t:
+        name: __pthread_list_t
+      c:@UA@pthread_mutex_t:
+        name: pthread_mutex_t
+      c:zenoh_dart.h@T@SubscriberCallback:
+        name: SubscriberCallback
+      c:zenoh_dart.h@T@subscriber_node_t:
+        name: subscriber_node_t
+      c:zenoh_dart.h@current_publisher_key:
+        name: current_publisher_key
+      c:zenoh_dart.h@g_next_subscriber_id:
+        name: g_next_subscriber_id
+      c:zenoh_dart.h@g_subscribers_head:
+        name: g_subscribers_head
+      c:zenoh_dart.h@g_subscribers_mutex:
+        name: g_subscribers_mutex
+      c:zenoh_dart.h@global_publisher:
+        name: global_publisher
+      c:zenoh_dart.h@last_received_value:
+        name: last_received_value
+      c:zenoh_dart.h@publisher_declared:
+        name: publisher_declared
+      c:zenoh_dart.h@reply_received:
+        name: reply_received
+      c:zenoh_dart.h@session:
+        name: session
+      c:zenoh_dart.h@session_opened:
+        name: session_opened
