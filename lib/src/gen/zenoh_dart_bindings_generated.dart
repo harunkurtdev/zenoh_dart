@@ -78,15 +78,14 @@ class ZenohDartBindings {
   set current_publisher_key(ffi.Pointer<ffi.Char> value) =>
       _current_publisher_key.value = value;
 
-  /// Linked list for subscribers
-  late final ffi.Pointer<ffi.Pointer<subscriber_node_t>> _g_subscribers_head =
-      _lookup<ffi.Pointer<subscriber_node_t>>('g_subscribers_head');
+  /// Multiple subscribers support
+  late final ffi.Pointer<ffi.Pointer<subscriber_t>> _g_subscribers =
+      _lookup<ffi.Pointer<subscriber_t>>('g_subscribers');
 
-  ffi.Pointer<subscriber_node_t> get g_subscribers_head =>
-      _g_subscribers_head.value;
+  ffi.Pointer<subscriber_t> get g_subscribers => _g_subscribers.value;
 
-  set g_subscribers_head(ffi.Pointer<subscriber_node_t> value) =>
-      _g_subscribers_head.value = value;
+  set g_subscribers(ffi.Pointer<subscriber_t> value) =>
+      _g_subscribers.value = value;
 
   late final ffi.Pointer<ffi.Int> _g_next_subscriber_id =
       _lookup<ffi.Int>('g_next_subscriber_id');
@@ -94,11 +93,6 @@ class ZenohDartBindings {
   int get g_next_subscriber_id => _g_next_subscriber_id.value;
 
   set g_next_subscriber_id(int value) => _g_next_subscriber_id.value = value;
-
-  late final ffi.Pointer<pthread_mutex_t> _g_subscribers_mutex =
-      _lookup<pthread_mutex_t>('g_subscribers_mutex');
-
-  pthread_mutex_t get g_subscribers_mutex => _g_subscribers_mutex.ref;
 
   /// Function declarations
   int zenoh_init() {
@@ -117,14 +111,22 @@ class ZenohDartBindings {
       _lookup<ffi.NativeFunction<ffi.Void Function()>>('zenoh_cleanup');
   late final _zenoh_cleanup = _zenoh_cleanupPtr.asFunction<void Function()>();
 
-  int zenoh_open_session() {
-    return _zenoh_open_session();
+  int zenoh_open_session(
+    ffi.Pointer<ffi.Char> mode,
+    ffi.Pointer<ffi.Char> endpoint,
+  ) {
+    return _zenoh_open_session(
+      mode,
+      endpoint,
+    );
   }
 
-  late final _zenoh_open_sessionPtr =
-      _lookup<ffi.NativeFunction<ffi.Int Function()>>('zenoh_open_session');
-  late final _zenoh_open_session =
-      _zenoh_open_sessionPtr.asFunction<int Function()>();
+  late final _zenoh_open_sessionPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Int Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('zenoh_open_session');
+  late final _zenoh_open_session = _zenoh_open_sessionPtr
+      .asFunction<int Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   void zenoh_close_session() {
     return _zenoh_close_session();
@@ -251,20 +253,10 @@ class ZenohDartBindings {
       _lookup<ffi.NativeFunction<ffi.Void Function()>>('zenoh_unsubscribe_all');
   late final _zenoh_unsubscribe_all =
       _zenoh_unsubscribe_allPtr.asFunction<void Function()>();
-
-  int zenoh_get_subscriber_count() {
-    return _zenoh_get_subscriber_count();
-  }
-
-  late final _zenoh_get_subscriber_countPtr =
-      _lookup<ffi.NativeFunction<ffi.Int Function()>>(
-          'zenoh_get_subscriber_count');
-  late final _zenoh_get_subscriber_count =
-      _zenoh_get_subscriber_countPtr.asFunction<int Function()>();
 }
 
 /// Subscriber structure
-final class subscriber_node extends ffi.Struct {
+final class subscriber_t extends ffi.Struct {
   external z_owned_subscriber_t subscriber;
 
   external SubscriberCallback callback;
@@ -277,8 +269,6 @@ final class subscriber_node extends ffi.Struct {
 
   @ffi.Array.multi([256])
   external ffi.Array<ffi.Char> key_expr;
-
-  external ffi.Pointer<subscriber_node> next;
 }
 
 /// An owned Zenoh <a href="https://zenoh.io/docs/manual/abstractions/#subscriber"> subscriber </a>.
@@ -318,52 +308,6 @@ final class z_owned_publisher_t extends ffi.Struct {
   external ffi.Array<ffi.Uint8> _0;
 }
 
-/// Subscriber structure
-typedef subscriber_node_t = subscriber_node;
-
-final class pthread_mutex_t extends ffi.Union {
-  external __pthread_mutex_s __data;
-
-  @ffi.Array.multi([40])
-  external ffi.Array<ffi.Char> __size;
-
-  @ffi.Long()
-  external int __align;
-}
-
-final class __pthread_mutex_s extends ffi.Struct {
-  @ffi.Int()
-  external int __lock;
-
-  @ffi.UnsignedInt()
-  external int __count;
-
-  @ffi.Int()
-  external int __owner;
-
-  @ffi.UnsignedInt()
-  external int __nusers;
-
-  @ffi.Int()
-  external int __kind;
-
-  @ffi.Short()
-  external int __spins;
-
-  @ffi.Short()
-  external int __elision;
-
-  external __pthread_list_t __list;
-}
-
-typedef __pthread_list_t = __pthread_internal_list;
-
-final class __pthread_internal_list extends ffi.Struct {
-  external ffi.Pointer<__pthread_internal_list> __prev;
-
-  external ffi.Pointer<__pthread_internal_list> __next;
-}
-
 const int Z_CONGESTION_CONTROL_DEFAULT = 1;
 
 const int Z_CONSOLIDATION_MODE_DEFAULT = -1;
@@ -397,3 +341,5 @@ const String Z_CONFIG_SCOUTING_TIMEOUT_KEY = 'scouting/timeout';
 const String Z_CONFIG_ADD_TIMESTAMP_KEY = 'timestamping/enabled';
 
 const String Z_CONFIG_SHARED_MEMORY_KEY = 'transport/shared_memory/enabled';
+
+const int MAX_SUBSCRIBERS = 32;

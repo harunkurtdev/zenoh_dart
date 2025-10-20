@@ -168,7 +168,7 @@ FFI_PLUGIN_EXPORT int zenoh_open_session(const char* mode, const char* endpoints
 
     zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_MODE_KEY, mode);
 
-// TODO : Fix for macOS network permissions
+// TODO : Fix for macOS network permissions, working on it
 #if defined(__APPLE__) 
     zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_MULTICAST_SCOUTING_KEY, "false");
 #endif

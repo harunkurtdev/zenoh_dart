@@ -9,14 +9,9 @@ FetchContent_Declare(
     GIT_TAG 1.5.1
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
+    # GIT_TAG release/1.5.1
 )
-
-FetchContent_GetProperties(zenohc)
-if(NOT zenohc_POPULATED)
-    message(STATUS "Downloading zenoh-c...")
-    FetchContent_Populate(zenohc)
-    message(STATUS "zenoh-c downloaded to: ${zenohc_SOURCE_DIR}")
-endif()
+FetchContent_MakeAvailable(zenohc)
 
 # --- ANDROID platform detection & configuration ---
 if(ANDROID)
@@ -38,6 +33,7 @@ if(ANDROID)
         message(FATAL_ERROR "❌ Unsupported ANDROID_ABI: ${ANDROID_ABI}")
     endif()
     
+    # Use zenohc_SOURCE_DIR for build since that's where Cargo.toml is
     set(ZENOHC_BUILD_DIR "${zenohc_SOURCE_DIR}")
     set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${ZENOHC_TARGET}/release/libzenohc.so")
     set(CARGO_CONFIG_DIR "${ZENOHC_BUILD_DIR}/.cargo")
@@ -56,6 +52,14 @@ ar = \"${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar\"
 ")
     
     message(STATUS "Created Cargo config at: ${CARGO_CONFIG_FILE}")
+    
+    # Set up environment variables for cross-compilation
+    set(CARGO_TARGET_ENV
+        "CC_${ZENOHC_TARGET}=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TOOLCHAIN_PREFIX}21-clang"
+        "CXX_${ZENOHC_TARGET}=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TOOLCHAIN_PREFIX}21-clang++"
+        "AR_${ZENOHC_TARGET}=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+        "CARGO_TARGET_${ZENOHC_TARGET}_LINKER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TOOLCHAIN_PREFIX}21-clang"
+    )
     
     # Convert target name to uppercase and replace dashes with underscores for env var names
     string(TOUPPER ${ZENOHC_TARGET} ZENOHC_TARGET_UPPER)
@@ -87,6 +91,7 @@ endif()
 # --- Zenoh Dart shared library ---
 add_library(zenoh_dart SHARED
     "zenoh_dart.c"
+    # "zenoh_dart_subscriber.c"
 )
 
 set_target_properties(zenoh_dart PROPERTIES
@@ -94,43 +99,21 @@ set_target_properties(zenoh_dart PROPERTIES
     OUTPUT_NAME "zenoh_dart"
 )
 
-# Set RPATH for different platforms
+# Set RPATH for Android to look in the same directory
 if(ANDROID)
     set_target_properties(zenoh_dart PROPERTIES
         BUILD_RPATH "\$ORIGIN"
         INSTALL_RPATH "\$ORIGIN"
         LINK_FLAGS "-Wl,-rpath,'\$ORIGIN'"
     )
-elseif(APPLE)
-    set_target_properties(zenoh_dart PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_NAME_DIR "@rpath"
-        BUILD_RPATH "@loader_path"
-        INSTALL_RPATH "@loader_path"
-    )
-elseif(UNIX)
-    set_target_properties(zenoh_dart PROPERTIES
-        BUILD_RPATH "\$ORIGIN"
-        INSTALL_RPATH "\$ORIGIN"
-    )
 endif()
 
-# Include directories
-if(ANDROID)
-    target_include_directories(zenoh_dart
-        PRIVATE
-        ${zenohc_SOURCE_DIR}/include
-        ${zenohc_BINARY_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-else()
-    target_include_directories(zenoh_dart
-        PUBLIC
-        ${zenohc_SOURCE_DIR}/include
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-endif()
+target_include_directories(zenoh_dart
+    PRIVATE
+    ${zenohc_SOURCE_DIR}/include
+    ${zenohc_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 target_compile_definitions(zenoh_dart PUBLIC DART_SHARED_LIB)
 
@@ -165,6 +148,7 @@ if(ANDROID)
     )
 else()
     # For non-Android platforms (Linux, macOS, Windows)
+    # zenohc uses Cargo to build, but we need to build it ourselves
     message(STATUS "Building for ${CMAKE_SYSTEM_NAME}")
     
     # Determine the Rust target triple for the host system
@@ -188,7 +172,6 @@ else()
     
     if(WIN32)
         set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/zenohc.dll")
-        set(ZENOHC_IMPLIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/zenohc.dll.lib")
     elseif(APPLE)
         set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/libzenohc.dylib")
     else()
@@ -212,48 +195,10 @@ else()
     add_library(zenohc SHARED IMPORTED)
     set_target_properties(zenohc PROPERTIES
         IMPORTED_LOCATION ${ZENOHC_LIB}
-        INTERFACE_INCLUDE_DIRECTORIES ${zenohc_SOURCE_DIR}/include
     )
-    
-    if(WIN32 AND EXISTS ${ZENOHC_IMPLIB})
-        set_target_properties(zenohc PROPERTIES
-            IMPORTED_IMPLIB ${ZENOHC_IMPLIB}
-        )
-    endif()
     
     add_dependencies(zenoh_dart build_zenohc)
     target_link_libraries(zenoh_dart PRIVATE zenohc)
-    
-    # macOS için özel link seçenekleri
-    if(APPLE)
-        target_link_options(zenoh_dart PRIVATE
-            "-Wl,-rpath,@loader_path"
-        )
-    endif()
-    
-    # Copy zenohc library to output directory
-    if(APPLE)
-        add_custom_command(TARGET zenoh_dart POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${ZENOHC_LIB}
-                $<TARGET_FILE_DIR:zenoh_dart>/libzenohc.dylib
-            COMMAND install_name_tool -id "@rpath/libzenohc.dylib" 
-                $<TARGET_FILE_DIR:zenoh_dart>/libzenohc.dylib
-            COMMAND install_name_tool -change 
-                "${ZENOHC_LIB}"
-                "@rpath/libzenohc.dylib"
-                $<TARGET_FILE:zenoh_dart>
-            COMMAND ${CMAKE_COMMAND} -E echo "✓ Copied and configured libzenohc.dylib for framework"
-            COMMENT "Copying and configuring zenoh-c library for macOS"
-        )
-    else()
-        add_custom_command(TARGET zenoh_dart POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${ZENOHC_LIB}
-                $<TARGET_FILE_DIR:zenoh_dart>/
-            COMMENT "Copying zenoh-c library to output directory"
-        )
-    endif()
 endif()
 
 if(NOT ANDROID)

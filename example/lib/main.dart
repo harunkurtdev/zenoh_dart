@@ -413,7 +413,11 @@ class _MultipleSubscribersPageState extends State<MultipleSubscribersPage> {
     if (_isDisposed) return;
 
     try {
-      await ZenohDart.initialize();
+      await ZenohDart.initialize(mode: 'client', endpoints: [
+        'tcp/localhost:7447',
+        'tcp/10.51.45.140:7447',
+        'tcp/127.0.0.1:7447'
+      ]);
 
       for (var topic in _topics) {
         if (_isDisposed) break;

@@ -22,13 +22,14 @@ class ZenohDart {
   static bool _isInitialized = false;
 
   /// Initialize Zenoh session and callback
-  static Future<void> initialize() async {
+  static Future<void> initialize(
+      {String mode = 'client', List<String> endpoints = const []}) async {
     if (_isInitialized) return;
 
     print('ZenohDart: Initializing...');
 
     // Open session first
-    final result = openSession();
+    final result = openSession(mode: mode, endpoints: endpoints);
     if (result < 0) {
       throw Exception('Failed to open Zenoh session: $result');
     }
@@ -249,7 +250,8 @@ class ZenohDart {
   //   return result;
   // }
 
-  static int openSession(String mode, List<String> endpoints) {
+  static int openSession(
+      {String mode = 'client', List<String> endpoints = const []}) {
     final modePtr = mode.toNativeUtf8().cast<Char>();
     final endpointsJson = jsonEncode(endpoints); // ["tcp/...", "tcp/..."]
     final endpointsPtr = endpointsJson.toNativeUtf8().cast<Char>();
