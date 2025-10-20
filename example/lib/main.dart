@@ -393,6 +393,7 @@ class _MultipleSubscribersPageState extends State<MultipleSubscribersPage> {
     'sensor/humidity',
     'sensor/pressure',
     'mqtt/demo/sensor/temperature',
+    'mqtt/demo/sensor/**',
   ];
 
   @override

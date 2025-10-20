@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'package:ffi/ffi.dart';
+import 'dart:convert';
 
 import 'src/gen/zenoh_dart_bindings_generated.dart';
 
@@ -242,9 +243,19 @@ class ZenohDart {
   static int init() => _bindings.zenoh_init();
 
   /// Open a new session
-  static int openSession() {
-    final result = _bindings.zenoh_open_session();
-    print('ZenohDart: Open session result: $result');
+  // static int openSession() {
+  //   final result = _bindings.zenoh_open_session();
+  //   print('ZenohDart: Open session result: $result');
+  //   return result;
+  // }
+
+  static int openSession(String mode, List<String> endpoints) {
+    final modePtr = mode.toNativeUtf8().cast<Char>();
+    final endpointsJson = jsonEncode(endpoints); // ["tcp/...", "tcp/..."]
+    final endpointsPtr = endpointsJson.toNativeUtf8().cast<Char>();
+    final result = _bindings.zenoh_open_session(modePtr, endpointsPtr);
+    calloc.free(modePtr);
+    calloc.free(endpointsPtr);
     return result;
   }
 

@@ -18,9 +18,12 @@ headers:
     - "src/zenoh_dart.h"
   include-directives:
     - "src/zenoh_dart.h"
-    - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh.h"
-    - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_memory.h"
-    - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_constants.h"
+    # - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh.h"
+    # - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_memory.h"
+    # - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_constants.h"
+    - "/Users/harunkurtdev/Desktop/zenoh_dart/src/build/_deps/zenohc-src/release/include/zenoh.h"
+    - "/Users/harunkurtdev/Desktop/zenoh_dart/src/build/_deps/zenohc-src/release/include/zenoh_memory.h"
+    - "/Users/harunkurtdev/Desktop/zenoh_dart/src/build/_deps/zenohc-src/release/include/zenoh_constants.h"
 preamble: |
   // ignore_for_file: always_specify_types
   // ignore_for_file: camel_case_types
@@ -33,5 +36,7 @@ compiler-opts:
   - "-I/usr/local/include"
   - "-I/usr/local/include/zenoh"
   - "-I/usr/local/include/zenoh/plugins"
-  - "-I/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include"
-  - "-I/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/debug/include"
+  # - "-I/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include"
+  # - "-I/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/debug/include"
+  - "-I/Users/harunkurtdev/Desktop/zenoh_dart/src/build/_deps/zenohc-src/release/include"
+  - "-I/Users/harunkurtdev/Desktop/zenoh_dart/src/build/_deps/zenohc-src/debug/include"

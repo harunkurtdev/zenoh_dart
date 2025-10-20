@@ -7,7 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <zenoh.h>
+// #include <zenoh.h>
+
+#if __has_include(<zenoh.h>)
+    #include <zenoh.h>
+#elif __has_include("zenoh.h")
+    #include "zenoh.h"
+#else
+    #error "zenoh.h not found!"
+#endif
 
 #if _WIN32
 #include <windows.h>
@@ -61,10 +69,10 @@ static subscriber_t g_subscribers[MAX_SUBSCRIBERS];
 static int g_next_subscriber_id = 0;
 
 // Function declarations
-FFI_PLUGIN_EXPORT int zenoh_init();
-FFI_PLUGIN_EXPORT void zenoh_cleanup();
-FFI_PLUGIN_EXPORT int zenoh_open_session();
-FFI_PLUGIN_EXPORT void zenoh_close_session();
+FFI_PLUGIN_EXPORT int zenoh_init(void);
+FFI_PLUGIN_EXPORT void zenoh_cleanup(void);
+FFI_PLUGIN_EXPORT int zenoh_open_session(const char* mode, const char* endpoint);
+FFI_PLUGIN_EXPORT void zenoh_close_session(void);
 FFI_PLUGIN_EXPORT int zenoh_put(const char* key, const char* value);
 FFI_PLUGIN_EXPORT int zenoh_publish(const char* key, const char* value);
 FFI_PLUGIN_EXPORT char* zenoh_get(const char* key);

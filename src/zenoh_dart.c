@@ -157,23 +157,38 @@ FFI_PLUGIN_EXPORT void zenoh_cleanup()
   }
 }
 
-FFI_PLUGIN_EXPORT int zenoh_open_session()
-{
-  if (session_opened)
-  {
+FFI_PLUGIN_EXPORT int zenoh_open_session(const char* mode, const char* endpoints) {
+    if (session_opened) {
+        printf("Session already opened\n");
+        return 0;
+    }
+
+    z_owned_config_t config;
+    z_config_default(&config);
+
+    zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_MODE_KEY, mode);
+
+// TODO : Fix for macOS network permissions
+#if defined(__APPLE__) 
+    zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_MULTICAST_SCOUTING_KEY, "false");
+#endif
+
+    if (endpoints) {
+        if (strstr(mode, "peer")) {
+            zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_LISTEN_KEY, endpoints);
+        } else {
+            zc_config_insert_json5(z_loan_mut(config), Z_CONFIG_CONNECT_KEY, endpoints);
+        }
+    }
+
+    if (z_open(&session, z_move(config), NULL) < 0) {
+        printf("Failed to open Zenoh session\n");
+        return -1;
+    }
+
+    printf("Zenoh session opened successfully\n");
+    session_opened = true;
     return 0;
-  }
-
-  z_owned_config_t config;
-  z_config_default(&config);
-
-  if (z_open(&session, z_move(config), NULL) < 0)
-  {
-    return -1;
-  }
-
-  session_opened = true;
-  return 0;
 }
 
 FFI_PLUGIN_EXPORT void zenoh_close_session()
