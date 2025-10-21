@@ -484,7 +484,7 @@ FFI_PLUGIN_EXPORT void zenoh_unsubscribe(int subscriber_id)
 }
 
 // Unsubscribe all subscribers
-FFI_PLUGIN_EXPORT void zenoh_unsubscribe_all()
+FFI_PLUGIN_EXPORT void zenoh_unsubscribe_all(void)
 {
     for (int i = 0; i < MAX_SUBSCRIBERS; i++) {
         if (g_subscribers[i].active) {
@@ -498,7 +498,7 @@ FFI_PLUGIN_EXPORT void zenoh_unsubscribe_all()
 
 // Initialize subscribers array
 __attribute__((constructor))
-static void initialize_subscribers() {
+static void initialize_subscribers(void) {
     for (int i = 0; i < MAX_SUBSCRIBERS; i++) {
         g_subscribers[i].active = false;
         g_subscribers[i].callback = NULL;

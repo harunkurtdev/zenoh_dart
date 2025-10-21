@@ -1,4 +1,3 @@
-// zenoh_dart.h - Header file
 #ifndef ZENOH_DART_H
 #define ZENOH_DART_H
 

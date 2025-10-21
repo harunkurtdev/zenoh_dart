@@ -224,27 +224,35 @@ else()
     add_dependencies(zenoh_dart build_zenohc)
     target_link_libraries(zenoh_dart PRIVATE zenohc)
     
-    # macOS için özel link seçenekleri
     if(APPLE)
         target_link_options(zenoh_dart PRIVATE
             "-Wl,-rpath,@loader_path"
+            "-Wl,-rpath,@loader_path/../Frameworks"
         )
     endif()
     
     # Copy zenohc library to output directory
     if(APPLE)
         add_custom_command(TARGET zenoh_dart POST_BUILD
+            # Copy libzenohc.dylib to framework's Versions/A directory
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${ZENOHC_LIB}
                 $<TARGET_FILE_DIR:zenoh_dart>/libzenohc.dylib
+            # Configure libzenohc.dylib install name
             COMMAND install_name_tool -id "@rpath/libzenohc.dylib" 
                 $<TARGET_FILE_DIR:zenoh_dart>/libzenohc.dylib
+            # Update zenohc reference in zenoh_dart to use @rpath
             COMMAND install_name_tool -change 
                 "${ZENOHC_LIB}"
                 "@rpath/libzenohc.dylib"
                 $<TARGET_FILE:zenoh_dart>
-            COMMAND ${CMAKE_COMMAND} -E echo "✓ Copied and configured libzenohc.dylib for framework"
-            COMMENT "Copying and configuring zenoh-c library for macOS"
+            # Verify the configuration
+            COMMAND ${CMAKE_COMMAND} -E echo "✓ Framework binary install name:"
+            COMMAND otool -D $<TARGET_FILE:zenoh_dart>
+            COMMAND ${CMAKE_COMMAND} -E echo ""
+            COMMAND ${CMAKE_COMMAND} -E echo "✓ Framework binary dependencies:"
+            COMMAND otool -L $<TARGET_FILE:zenoh_dart>
+            COMMENT "Configuring zenoh-c library for macOS framework"
         )
     else()
         add_custom_command(TARGET zenoh_dart POST_BUILD
