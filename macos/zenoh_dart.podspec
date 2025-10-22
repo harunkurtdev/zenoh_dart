@@ -101,7 +101,7 @@ A new Flutter FFI plugin project.
           # cp -R "${PODS_TARGET_SRCROOT}/../src/build/zenoh_dart.framework" "${FRAMEWORKS_DIR}/"
           codesign -f -s "${EXPANDED_CODE_SIGN_IDENTITY}" "${FRAMEWORKS_DIR}/libzenoh_dart.dylib" || true
           codesign -f -s "${EXPANDED_CODE_SIGN_IDENTITY}" "${FRAMEWORKS_DIR}/libzenohc.dylib" || true
-          codesign -f -s "${EXPANDED_CODE_SIGN_IDENTITY}" "${FRAMEWORKS_DIR}/zenoh_dart.framework" || true
+          # codesign -f -s "${EXPANDED_CODE_SIGN_IDENTITY}" "${FRAMEWORKS_DIR}/zenoh_dart.framework" || true
           ',
         :execution_position => :after_compile
       }

@@ -243,13 +243,6 @@ class ZenohDart {
   /// Initialize Zenoh (legacy)
   static int init() => _bindings.zenoh_init();
 
-  /// Open a new session
-  // static int openSession() {
-  //   final result = _bindings.zenoh_open_session();
-  //   print('ZenohDart: Open session result: $result');
-  //   return result;
-  // }
-
   static int openSession(
       {String mode = 'client', List<String> endpoints = const []}) {
     final modePtr = mode.toNativeUtf8().cast<Char>();

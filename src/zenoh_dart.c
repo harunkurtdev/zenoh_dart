@@ -15,7 +15,7 @@ const char *kind_to_str(z_sample_kind_t kind)
 }
 
 // Find free subscriber slot
-static int find_free_subscriber_slot() {
+static int find_free_subscriber_slot(void) {
     for (int i = 0; i < MAX_SUBSCRIBERS; i++) {
         if (!g_subscribers[i].active) {
             return i;
@@ -79,8 +79,9 @@ void data_handler(z_loaned_sample_t *sample, void *arg)
         memcpy(payload_buf, z_string_data(z_loan(payload_string)), payload_len);
         payload_buf[payload_len] = '\0';
 
-        printf("Calling callback for subscriber %d - Key: %s, Value: %s, Kind: %s\n", 
-               subscriber_id, key_buf, payload_buf, kind_buf);
+        // Logs for debugging
+        // printf("Calling callback for subscriber %d - Key: %s, Value: %s, Kind: %s\n", 
+        //        subscriber_id, key_buf, payload_buf, kind_buf);
 
         // CRITICAL: Pass ownership to Dart
         // Dart MUST free these strings using zenoh_free_string()
@@ -126,7 +127,7 @@ void reply_callback(z_loaned_reply_t *reply, void *context)
 }
 
 // Zenoh-C function implementations
-FFI_PLUGIN_EXPORT int zenoh_init()
+FFI_PLUGIN_EXPORT int zenoh_init(void)
 {
   z_owned_config_t config;
 
@@ -142,7 +143,7 @@ FFI_PLUGIN_EXPORT int zenoh_init()
   return 0;
 }
 
-FFI_PLUGIN_EXPORT void zenoh_cleanup()
+FFI_PLUGIN_EXPORT void zenoh_cleanup(void)
 {
   zenoh_unsubscribe_all();
   if (session_opened)
@@ -191,7 +192,7 @@ FFI_PLUGIN_EXPORT int zenoh_open_session(const char* mode, const char* endpoints
     return 0;
 }
 
-FFI_PLUGIN_EXPORT void zenoh_close_session()
+FFI_PLUGIN_EXPORT void zenoh_close_session(void)
 {
   zenoh_unsubscribe_all();
   if (session_opened)

@@ -6,20 +6,54 @@ include(FetchContent)
 FetchContent_Declare(
     zenohc
     GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-c.git
-    GIT_TAG 1.5.1
+    GIT_TAG 1.6.2
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
 )
 
-FetchContent_GetProperties(zenohc)
+
+# --- Platform Detection (FIXED) ---
+set(IS_IOS FALSE)
+set(IS_ANDROID FALSE)
+set(IS_MACOS FALSE)
+
+
+if(ANDROID)
+    set(IS_ANDROID TRUE)
+    message(STATUS "Platform: Android")
+# iOS detection MUST come before macOS check
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR IOS OR CMAKE_OSX_SYSROOT MATCHES "iphone")
+    set(IS_IOS TRUE)
+    message(STATUS "Platform: iOS")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(IS_MACOS TRUE)
+    message(STATUS "Platform: macOS")
+endif()
+
+
+if(IS_IOS)
+    FetchContent_MakeAvailable(zenohc)
+else()
+    FetchContent_GetProperties(zenohc)
+endif()
+
 if(NOT zenohc_POPULATED)
     message(STATUS "Downloading zenoh-c...")
     FetchContent_Populate(zenohc)
     message(STATUS "zenoh-c downloaded to: ${zenohc_SOURCE_DIR}")
+    # if (IS_IOS)
+    #     # Patch Cargo.toml to force staticlib for iOS compatibility
+    #     file(READ ${zenohc_SOURCE_DIR}/Cargo.toml CARGO_TOML_CONTENT)
+    #     string(REPLACE "crate-type = [\"cdylib\"]" "crate-type = [\"staticlib\"]" MODIFIED_CONTENT "${CARGO_TOML_CONTENT}")
+    #     string(REPLACE "crate-type = [\"dylib\"]" "crate-type = [\"staticlib\"]" MODIFIED_CONTENT "${MODIFIED_CONTENT}")
+    #     string(REPLACE "crate-type = [\"cdylib\", \"rlib\"]" "crate-type = [\"staticlib\"]" MODIFIED_CONTENT "${MODIFIED_CONTENT}")
+    #     file(WRITE ${zenohc_SOURCE_DIR}/Cargo.toml "${MODIFIED_CONTENT}")
+    #     message(STATUS "Patched zenoh-c Cargo.toml to use staticlib")
+    # endif()
 endif()
 
-# --- ANDROID platform detection & configuration ---
-if(ANDROID)
+# --- ANDROID Configuration ---
+if(IS_ANDROID)
     message(STATUS "Building for Android ABI: ${ANDROID_ABI}")
     
     if(${ANDROID_ABI} STREQUAL "arm64-v8a")
@@ -84,24 +118,145 @@ ar = \"${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar\"
     add_custom_target(build_zenohc_android ALL DEPENDS ${ZENOHC_LIB})
 endif()
 
-# --- Zenoh Dart shared library ---
-add_library(zenoh_dart SHARED
-    "zenoh_dart.c"
-)
+# --- iOS Configuration (FIXED) ---
+if(IS_IOS)
+    message(STATUS "Building for iOS")
+    message(STATUS "CMAKE_OSX_ARCHITECTURES: ${CMAKE_OSX_ARCHITECTURES}")
+    message(STATUS "CMAKE_OSX_SYSROOT: ${CMAKE_OSX_SYSROOT}")
+    
+    # Determine iOS target based on SDK
+    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator")
+        # iOS Simulator
+        if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+            set(RUST_TARGET "aarch64-apple-ios-sim")
+            set(CARGO_TOOLCHAIN "+nightly")
+            set(BUILD_STD "-Z build-std")
+        elseif(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+            set(RUST_TARGET "x86_64-apple-ios")
+            set(CARGO_TOOLCHAIN "")
+            set(BUILD_STD "")
+        else()
+            set(RUST_TARGET "aarch64-apple-ios-sim")
+            set(CARGO_TOOLCHAIN "+nightly")
+            set(BUILD_STD "-Z build-std")
+        endif()
+        message(STATUS "Detected iOS Simulator build: ${RUST_TARGET}")
+    else()
+        # iOS Device
+        set(RUST_TARGET "aarch64-apple-ios")
+        set(CARGO_TOOLCHAIN "")
+        set(BUILD_STD "")
+        message(STATUS "Detected iOS Device build")
+    endif()
+    
+    set(ZENOHC_BUILD_DIR "${zenohc_SOURCE_DIR}")
+    set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/libzenohc.a")
+    
+    message(STATUS "iOS Rust target: ${RUST_TARGET}")
+    message(STATUS "Zenoh-C library path: ${ZENOHC_LIB}")
+    
+    # Ensure nightly toolchain is installed for simulator builds
+    if(CARGO_TOOLCHAIN STREQUAL "+nightly")
+        execute_process(
+            COMMAND rustup toolchain list
+            OUTPUT_VARIABLE TOOLCHAIN_LIST
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(NOT TOOLCHAIN_LIST MATCHES "nightly")
+            message(STATUS "Installing Rust nightly toolchain for iOS simulator...")
+            execute_process(
+                COMMAND rustup toolchain install nightly
+                RESULT_VARIABLE RUSTUP_RESULT
+                OUTPUT_QUIET
+                ERROR_QUIET
+            )
+            if(NOT RUSTUP_RESULT EQUAL 0)
+                message(WARNING "Failed to install Rust nightly toolchain automatically. Please run: rustup toolchain install nightly")
+            endif()
+        endif()
+        
+        # Add iOS simulator target
+        message(STATUS "Ensuring Rust target ${RUST_TARGET} is installed...")
+        execute_process(
+            COMMAND rustup ${CARGO_TOOLCHAIN} target add ${RUST_TARGET}
+            RESULT_VARIABLE RUSTUP_RESULT
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(NOT RUSTUP_RESULT EQUAL 0)
+            message(WARNING "Could not verify target ${RUST_TARGET}. Please run: rustup +nightly target add ${RUST_TARGET}")
+        endif()
+    else()
+        # Add iOS device target
+        message(STATUS "Ensuring Rust target ${RUST_TARGET} is installed...")
+        execute_process(
+            COMMAND rustup target add ${RUST_TARGET}
+            RESULT_VARIABLE RUSTUP_RESULT
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(NOT RUSTUP_RESULT EQUAL 0)
+            message(WARNING "Could not verify target ${RUST_TARGET}. Please run: rustup target add ${RUST_TARGET}")
+        endif()
+    endif()
+    
+    # Clean any existing macOS builds to prevent wrong architecture linking
+    add_custom_command(
+        OUTPUT ${ZENOHC_LIB}
+        # Remove any macOS dylib that might interfere
+        COMMAND ${CMAKE_COMMAND} -E remove -f ${ZENOHC_BUILD_DIR}/target/aarch64-apple-darwin/release/libzenohc.dylib
+        COMMAND ${CMAKE_COMMAND} -E remove -f ${ZENOHC_BUILD_DIR}/target/x86_64-apple-darwin/release/libzenohc.dylib
+        # Build for iOS target with explicit Rust environment
+        COMMAND ${CMAKE_COMMAND} -E env 
+            RUSTUP_HOME=$ENV{HOME}/.rustup
+            CARGO_HOME=$ENV{HOME}/.cargo
+            cargo ${CARGO_TOOLCHAIN} build --release --target ${RUST_TARGET} --lib ${BUILD_STD}
+        # Verify the output is a static library
+        COMMAND ${CMAKE_COMMAND} -E echo "Verifying iOS build..."
+        COMMAND test -f ${ZENOHC_LIB} || (echo "ERROR: Static library not found at ${ZENOHC_LIB}" && exit 1)
+        COMMAND file ${ZENOHC_LIB}
+        WORKING_DIRECTORY ${zenohc_SOURCE_DIR}
+        COMMENT "Building zenoh-c static library for iOS target: ${RUST_TARGET}"
+        VERBATIM
+    )
+    
+    add_custom_target(build_zenohc_ios ALL DEPENDS ${ZENOHC_LIB})
+endif()
+
+# --- Zenoh Dart library ---
+if (IS_IOS)
+    add_library(zenoh_dart STATIC
+        "zenoh_dart.c"
+    )
+else()
+    add_library(zenoh_dart SHARED
+        "zenoh_dart.c"
+    )
+endif()
 
 set_target_properties(zenoh_dart PROPERTIES
     PUBLIC_HEADER zenoh_dart.h
     OUTPUT_NAME "zenoh_dart"
 )
 
-# Set RPATH for different platforms
-if(ANDROID)
+# Platform-specific properties
+if(IS_ANDROID)
     set_target_properties(zenoh_dart PROPERTIES
         BUILD_RPATH "\$ORIGIN"
         INSTALL_RPATH "\$ORIGIN"
         LINK_FLAGS "-Wl,-rpath,'\$ORIGIN'"
     )
-elseif(APPLE)
+elseif(IS_IOS)
+    # iOS doesn't support dynamic libraries in the same way
+    # Set minimal properties for iOS framework
+    set_target_properties(zenoh_dart PROPERTIES
+        FRAMEWORK FALSE
+        XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
+        XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO"
+        XCODE_ATTRIBUTE_ENABLE_BITCODE "NO"
+    )
+elseif(IS_MACOS)
     set_target_properties(zenoh_dart PROPERTIES
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_NAME_DIR "@rpath"
@@ -116,11 +271,18 @@ elseif(UNIX)
 endif()
 
 # Include directories
-if(ANDROID)
+if(IS_ANDROID)
     target_include_directories(zenoh_dart
         PRIVATE
         ${zenohc_SOURCE_DIR}/include
         ${zenohc_BINARY_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+elseif(IS_IOS)
+    target_include_directories(zenoh_dart
+        PUBLIC
+        ${zenohc_SOURCE_DIR}/include
+        PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
 else()
@@ -135,7 +297,7 @@ endif()
 target_compile_definitions(zenoh_dart PUBLIC DART_SHARED_LIB)
 
 # --- Link libraries ---
-if(ANDROID)
+if(IS_ANDROID)
     find_library(log-lib log)
     add_dependencies(zenoh_dart build_zenohc_android)
     
@@ -163,39 +325,107 @@ if(ANDROID)
         COMMAND ${CMAKE_COMMAND} -E echo "Copied libzenohc.so to $<TARGET_FILE_DIR:zenoh_dart>/"
         COMMENT "Copying libzenohc.so to output directory"
     )
+elseif(IS_IOS)
+    # iOS specific linking
+    add_dependencies(zenoh_dart build_zenohc_ios)
+    
+    # Import zenohc as a static library for iOS
+    add_library(zenohc STATIC IMPORTED)
+    set_target_properties(zenohc PROPERTIES
+        IMPORTED_LOCATION ${ZENOHC_LIB}
+        INTERFACE_INCLUDE_DIRECTORIES ${zenohc_SOURCE_DIR}/include
+    )
+    
+    # Link with static library and system frameworks
+    target_link_libraries(zenoh_dart PRIVATE 
+        zenohc
+        "-framework Foundation"
+        "-framework Security"
+        "-framework SystemConfiguration"
+        "-lresolv"
+        "-lc++"
+    )
+    
+    # Force static linking of zenohc
+    target_link_options(zenoh_dart PRIVATE
+        "-force_load" "${ZENOHC_LIB}"
+    )
 else()
-    # For non-Android platforms (Linux, macOS, Windows)
+    # For non-Android/iOS platforms (Linux, macOS, Windows)
     message(STATUS "Building for ${CMAKE_SYSTEM_NAME}")
+    message(STATUS "Processor: ${CMAKE_SYSTEM_PROCESSOR}")
     
     # Determine the Rust target triple for the host system
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
             set(RUST_TARGET "x86_64-unknown-linux-gnu")
-        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+            set(LIB_EXTENSION "so")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
             set(RUST_TARGET "aarch64-unknown-linux-gnu")
+            set(LIB_EXTENSION "so")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7l")
+            set(RUST_TARGET "armv7-unknown-linux-gnueabihf")
+            set(LIB_EXTENSION "so")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86")
+            set(RUST_TARGET "i686-unknown-linux-gnu")
+            set(LIB_EXTENSION "so")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
+            set(RUST_TARGET "riscv64gc-unknown-linux-gnu")
+            set(LIB_EXTENSION "so")
+        else()
+            message(WARNING "Unknown Linux processor: ${CMAKE_SYSTEM_PROCESSOR}, defaulting to x86_64")
+            set(RUST_TARGET "x86_64-unknown-linux-gnu")
+            set(LIB_EXTENSION "so")
         endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
             set(RUST_TARGET "x86_64-apple-darwin")
         elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
             set(RUST_TARGET "aarch64-apple-darwin")
+        else()
+            message(WARNING "Unknown macOS processor: ${CMAKE_SYSTEM_PROCESSOR}, defaulting to x86_64")
+            set(RUST_TARGET "x86_64-apple-darwin")
         endif()
+        set(LIB_EXTENSION "dylib")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(RUST_TARGET "x86_64-pc-windows-msvc")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64")
+            set(RUST_TARGET "x86_64-pc-windows-msvc")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+            set(RUST_TARGET "aarch64-pc-windows-msvc")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86|i686")
+            set(RUST_TARGET "i686-pc-windows-msvc")
+        else()
+            message(WARNING "Unknown Windows processor: ${CMAKE_SYSTEM_PROCESSOR}, defaulting to x86_64")
+            set(RUST_TARGET "x86_64-pc-windows-msvc")
+        endif()
+        set(LIB_EXTENSION "dll")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
+            set(RUST_TARGET "x86_64-unknown-freebsd")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386")
+            set(RUST_TARGET "i686-unknown-freebsd")
+        endif()
+        set(LIB_EXTENSION "so")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
+            set(RUST_TARGET "x86_64-unknown-netbsd")
+        endif()
+        set(LIB_EXTENSION "so")
+    else()
+        message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
     endif()
     
     set(ZENOHC_BUILD_DIR "${zenohc_SOURCE_DIR}")
     
     if(WIN32)
-        set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/zenohc.dll")
+        set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/zenohc.${LIB_EXTENSION}")
         set(ZENOHC_IMPLIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/zenohc.dll.lib")
-    elseif(APPLE)
-        set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/libzenohc.dylib")
     else()
-        set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/libzenohc.so")
+        set(ZENOHC_LIB "${ZENOHC_BUILD_DIR}/target/${RUST_TARGET}/release/libzenohc.${LIB_EXTENSION}")
     endif()
 
     message(STATUS "Rust target: ${RUST_TARGET}")
+    message(STATUS "Library extension: ${LIB_EXTENSION}")
     message(STATUS "Zenoh-C library path: ${ZENOHC_LIB}")
 
     # Build zenohc using Cargo
@@ -224,15 +454,21 @@ else()
     add_dependencies(zenoh_dart build_zenohc)
     target_link_libraries(zenoh_dart PRIVATE zenohc)
     
-    if(APPLE)
+    # Platform-specific linking options
+    if(IS_MACOS)
         target_link_options(zenoh_dart PRIVATE
             "-Wl,-rpath,@loader_path"
             "-Wl,-rpath,@loader_path/../Frameworks"
         )
+    elseif(UNIX AND NOT APPLE)
+        # Linux and BSD systems
+        target_link_options(zenoh_dart PRIVATE
+            "-Wl,-rpath,$ORIGIN"
+        )
     endif()
     
     # Copy zenohc library to output directory
-    if(APPLE)
+    if(IS_MACOS)
         add_custom_command(TARGET zenoh_dart POST_BUILD
             # Copy libzenohc.dylib to framework's Versions/A directory
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -264,7 +500,7 @@ else()
     endif()
 endif()
 
-if(NOT ANDROID)
+if(NOT IS_ANDROID)
     # Only hide symbols on non-Android platforms if needed
     # set_target_properties(zenoh_dart PROPERTIES
     #     C_VISIBILITY_PRESET hidden

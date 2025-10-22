@@ -32,13 +32,20 @@
 #define FFI_PLUGIN_EXPORT
 #endif
 
+// LOG MACRO for debugging
+//#define LOG_DEBUG(fmt, ...) printf("ZENOH_DART DEBUG: " fmt "\n", ##__VA_ARGS__)
+//#else
+//#define LOG_DEBUG(fmt, ...) do {} while (0)
+//#endif
+
 
 // Callback function pointer type for Flutter
 typedef void (*SubscriberCallback)(const char* key, const char* value, const char* kind, const char* attachment, int subscriber_id);
 
-// rewrite
+// TODO: unidentified issue with multiple subscribers, need to investigate
+// Define maximum number of subscribers
 // Maximum dictionary of concurrent subscribers
-#define MAX_SUBSCRIBERS 32
+#define MAX_SUBSCRIBERS 255
 
 
 // Subscriber structure
@@ -79,6 +86,6 @@ FFI_PLUGIN_EXPORT char* zenoh_get_with_handler(const char* key);
 FFI_PLUGIN_EXPORT void zenoh_free_string(char* str);
 FFI_PLUGIN_EXPORT int zenoh_subscribe(const char* key_expr, SubscriberCallback callback);
 FFI_PLUGIN_EXPORT void zenoh_unsubscribe(int subscriber_id);
-FFI_PLUGIN_EXPORT void zenoh_unsubscribe_all();
+FFI_PLUGIN_EXPORT void zenoh_unsubscribe_all(void);
 
 #endif // ZENOH_DART_H
