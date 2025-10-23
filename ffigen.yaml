@@ -18,6 +18,7 @@ headers:
     - "src/zenoh_dart.h"
   include-directives:
     - "src/zenoh_dart.h"
+    # TODO : Update these paths according to src/include location
     - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh.h"
     - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_memory.h"
     - "/home/harunkurtdev/zenoh_dart/example/build/linux/x64/debug/_deps/zenohc-build/release/include/zenoh_constants.h"
