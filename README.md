@@ -3,7 +3,7 @@
 A Dart binding for Zenoh - a high-performance, zero-overhead pub/sub, store/query (not yet) and compute protocol that unifies data in motion,
 data at rest and computations. zenoh_dart enables Dart and Flutter applications to seamlessly integrate with Zenoh's distributed systems capabilities.
 
-![VideoGif](./docs/video.gif)
+![Video](./docs/video.MP4)
 
 ## Development Checklist
 
