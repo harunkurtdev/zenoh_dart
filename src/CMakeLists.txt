@@ -37,6 +37,11 @@ else()
     FetchContent_GetProperties(zenohc)
 endif()
 
+
+# set(NATIVE_OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# file(MAKE_DIRECTORY ${NATIVE_OUTPUT_DIR})
+
+
 if(NOT zenohc_POPULATED)
     message(STATUS "Downloading zenoh-c...")
     FetchContent_Populate(zenohc)
