@@ -9,7 +9,7 @@ A Dart FFI binding for [Zenoh](https://zenoh.io/) - a high-performance, zero-ove
 `zenoh_ffi` enables Dart and Flutter applications to seamlessly integrate with Zenoh's distributed systems capabilities through native FFI bindings.
 
 <video width="640" height="360" controls>
-  <source src="./doc/video.mp4" type="video/mp4">
+  <source src="./doc/video.MP4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
